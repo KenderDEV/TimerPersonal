@@ -7,7 +7,17 @@ using TMPro;
 
 public class Timer : MonoBehaviour
 {
-    void Start()
+    public void getData()
+    {
+        data = GetComponentInChildren<TextMeshProUGUI>();
+    }
+    public void getBtn()
+    {
+        eliminate = GetComponentInChildren<Button>();
+    }
+    public TextMeshProUGUI data { get; set; }
+    public Button eliminate { get; set; }
+    public void Set()
     {
         next = second;
     }

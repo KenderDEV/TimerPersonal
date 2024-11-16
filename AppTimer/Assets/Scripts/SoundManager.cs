@@ -87,18 +87,7 @@ public class SoundManager : MonoBehaviour
         }
     }
 
-    void UpdateListPosition()
-    {
-        for (int i = 0; i < Sounds.Count; i++)
-        {
-            var rectTransform = SoundsGO[i]?.GetComponent<RectTransform>();
-            if (rectTransform != null)
-            {
-                rectTransform.anchoredPosition = new Vector2(0, 150f - (i * 75));
-                rectTransform.sizeDelta = new Vector2(350, 60);
-            }
-        }
-    }
+
 
     void CreateSounds()
     {
@@ -109,17 +98,22 @@ public class SoundManager : MonoBehaviour
             SoundView.transform.SetParent(parent.transform);
             SoundView.AddComponent<Image>().sprite = style.buttonSprite();
             SoundView.GetComponent<Image>().type = Image.Type.Sliced;
+            SoundView.GetComponent<RectTransform>().sizeDelta = new Vector2(190, 50);
+            SoundView.AddComponent<LayoutElement>();
 
             var SoundText = new GameObject("text " + ID);
             ConfigText(SoundText.AddComponent<TextMeshProUGUI>(), ID);
+            SoundText.GetComponent<TextMeshProUGUI>().fontSize = 20;
+            SoundText.GetComponent<TextMeshProUGUI>().autoSizeTextContainer = true;
+            SoundText.GetComponent<TextMeshProUGUI>().margin = new Vector4(10, 0, 0, 0);
+            SoundText.GetComponent<RectTransform>().sizeDelta = new Vector2(100, 50);
+            SoundText.GetComponent<RectTransform>().anchoredPosition = new Vector2(50, 0);
             SoundText.transform.SetParent(SoundView.transform);
-            SoundText.GetComponent<RectTransform>().anchoredPosition = new Vector2(-50, 0);
 
             CreateButtonSound(ID, SoundView);
             CreateButtonSelect(ID, SoundView);
             SoundsGO.Add(SoundView);
         }
-        UpdateListPosition();
     }
 
     void CreateButtonSound(int ID, GameObject SoundView)
@@ -127,7 +121,7 @@ public class SoundManager : MonoBehaviour
         var ButtonSound = new GameObject("ButtonSound " + ID);
         ButtonSound.transform.SetParent(SoundView.transform);
         ButtonSound.AddComponent<Button>().onClick.AddListener(() => Reproduc(ID));
-        ConfigButton(ButtonSound, 150, 40);
+        ConfigButton(ButtonSound, 70, 40);
 
         var ImageSound = new GameObject("ImageSound " + ID);
         ImageSound.AddComponent<Image>().sprite = play;
@@ -142,7 +136,7 @@ public class SoundManager : MonoBehaviour
         var ButtonSelect = new GameObject("ButtonSelect " + ID);
         ButtonSelect.transform.SetParent(SoundView.transform);
         ButtonSelect.AddComponent<Button>().onClick.AddListener(() => SelectAudio(ID));
-        ConfigButton(ButtonSelect, 100, 40);
+        ConfigButton(ButtonSelect, 25, 40);
         ButtonSelect.AddComponent<Image>().sprite = style.buttonSprite();
         ButtonSelect.GetComponent<Image>().type = Image.Type.Sliced;
         ButtonSelect.GetComponent<Image>().pixelsPerUnitMultiplier = 2;

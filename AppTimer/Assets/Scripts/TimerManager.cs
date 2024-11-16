@@ -5,6 +5,8 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 using Unity.Mathematics;
+using UnityEditor;
+using Unity.VisualScripting;
 
 public class TimerManager : MonoBehaviour
 {
@@ -26,8 +28,13 @@ public class TimerManager : MonoBehaviour
     [Header("Sound")]
     [SerializeField] SoundManager soundManager;
     [SerializeField] GameManager style;
+    [Header("Prefab")]
+    [SerializeField] GameObject prefabAlarm;
+    [SerializeField] Transform parent;
     float tiempoActual = 0f;
     bool cronometroActivo = false;
+    List<GameObject> pool = new List<GameObject>();
+
 
     void Start()
     {
@@ -70,7 +77,7 @@ public class TimerManager : MonoBehaviour
                 ActualizarTextoTiempo();
                 break;
             case 3:
-                CronoCopy.text = CronoText.text;
+                CronoCopy.text = formatTimeExit(tiempoActual);
                 cronometroActivo = false;
                 break;
             case 4:
@@ -108,11 +115,18 @@ public class TimerManager : MonoBehaviour
         string time = string.Format("{0:00}:{1:00}:{2:00}", horas, minutos, segundos);
         return time;
     }
+    string formatTimeExit(float tiempo)
+    {
+        int horas = Mathf.FloorToInt(tiempo / 3600);
+        int minutos = Mathf.FloorToInt((tiempo % 3600) / 60);
+        string time = string.Format("{0}.{1}", horas, minutos);
+        return time;
+    }
 
     void copyText()
     {
         TextEditor textEditor = new TextEditor();
-        textEditor.text = CronoText.text;
+        textEditor.text = CronoCopy.text;
         textEditor.SelectAll();
         textEditor.Copy();
     }
@@ -141,61 +155,124 @@ public class TimerManager : MonoBehaviour
     }
     void CreateAlarm(int ID, int Second)
     {
-        GameObject timer = new GameObject("timer " + ID);
-        timer.transform.SetParent(parentHideTimers.transform);
-        timer.AddComponent<Timer>().ID = ID;
-        timer.GetComponent<Timer>().second = Second;
-        ConfigureViewAlarm(timer, Second, ID);
-        timer.AddComponent<RectTransform>();
-        timer.AddComponent<Image>().sprite = style.buttonSprite();
-        timer.GetComponent<Image>().type = Image.Type.Sliced;
-        timers.Add(timer.GetComponent<Timer>());
-        UpdateListPosition();
+        GameObject newItem = Instantiate(prefabAlarm, parent);
+        Timer obj = newItem.GetComponent<Timer>();  // Ya no usa MonoBehaviour, así que new está permitido.
+        obj.ID = ID;
+        obj.second = Second;
+        obj.getBtn();
+        obj.getData();
+        if (obj.data != null)
+        {
+            // Configura el tiempo formateado en el texto
+            obj.data.text = formatTime(Second);
+        }
+        if (obj.eliminate != null)
+        {
+            // Configura el tiempo formateado en el texto
+            obj.eliminate.onClick.AddListener(() => eliminar(obj.ID));
+        }
+        else
+        {
+            Debug.LogError("No se pudo encontrar TextMeshProUGUI en prefabAlarm.");
+        }
 
+        // Añadir el nuevo Timer a la lista de timers
+        timers.Add(obj);
+
+        // Actualizar la lista de ítems en la UI
         //print(timer.GetComponent<RectTransform>().anchoredPosition);
     }
     public void ActiveList(bool active)
     {
-        if (timers.Count != 0)
-        {
-            if (active)
-            {
-                for (int i = 0; i < timers.Count; i++)
-                {
-                    timers[i].transform.SetParent(parentTimers.transform);
-                }
-            }
-            else
-            {
-                for (int i = 0; i < timers.Count; i++)
-                {
-                    timers[i].transform.SetParent(parentHideTimers.transform);
-                }
-            }
-        }
-        UpdateListPosition();
+        UpdateItemList(timers);
     }
-    void UpdateListPosition()
+    private void UpdateItemList(List<Timer> listToDisplay = null)
     {
-        for (int i = 0; i < timers.Count; i++)
+        Debug.Log("Iniciando UpdateItemList");
+
+        // Usar la lista de timers actual si no se especifica otra
+        if (listToDisplay == null)
         {
-            if (timers[i] != null && timers[i].GetComponent<RectTransform>() != null)
+            listToDisplay = timers;
+        }
+
+        // Si no hay elementos en listToDisplay, vaciar y ocultar la lista visualmente
+        if (listToDisplay.Count == 0)
+        {
+            foreach (Transform child in parent)
             {
-                if (i != 0)
+                child.gameObject.SetActive(false);
+                pool.Add(child.gameObject);  // Agregar a pool para reutilizar
+            }
+            return;
+        }
+
+        // Asegurarse de que el prefab esté asignado
+        if (prefabAlarm == null)
+        {
+            Debug.LogError("El prefabAlarm no está asignado.");
+            return;
+        }
+
+        int index = 0;
+
+        // Recorrer los elementos de la lista de timers
+        foreach (var timer in listToDisplay)
+        {
+            GameObject item;
+
+            // Revisar si hay un objeto inactivo disponible en el pool
+            if (index < parent.childCount && parent.GetChild(index).gameObject.activeSelf == false)
+            {
+                item = parent.GetChild(index).gameObject;
+                item.SetActive(true);  // Reactivar el objeto
+            }
+            else if (pool.Count > 0) // Usar un objeto del pool si está disponible
+            {
+                item = pool[0];
+                pool.RemoveAt(0);
+                item.transform.SetParent(parent, false);
+                item.SetActive(true);
+            }
+            else  // Crear un nuevo objeto si no hay en el pool
+            {
+                item = Instantiate(prefabAlarm, parent);
+            }
+
+            // Configurar el componente Timer de cada objeto con los datos actuales
+            Timer setting = item.GetComponentInChildren<Timer>();
+            if (setting != null)
+            {
+                setting.ID = timers.Count + 1;
+                print(setting.ID);
+                setting.second = timer.second;
+                setting.getData();
+                setting.getBtn();
+                setting.data.text = timer.data.text;
+                if (setting.eliminate != null)
                 {
-                    timers[i].GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 150f - (i * 75));
+                    // Configura el tiempo formateado en el texto
+                    setting.eliminate.onClick.AddListener(() => eliminar(setting.ID));
                 }
-                else
-                {
-                    timers[i].GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 150f);
-                }
-                timers[i].GetComponent<RectTransform>().sizeDelta = new Vector2(400, 50);
+                setting.Set();  // Llamar a Set si tiene lógica adicional de configuración
             }
             else
             {
-                Debug.LogError("RectTransform is missing or timer is null at index: " + i);
+                Debug.LogError("No se encontró el componente Timer en el prefabAlarm.");
             }
+
+            index++;
         }
+
+        // Desactivar los objetos sobrantes en la jerarquía
+        for (int i = index; i < parent.childCount; i++)
+        {
+            GameObject child = parent.GetChild(i).gameObject;
+            child.SetActive(false);
+            pool.Add(child);  // Agregar al pool para su reutilización
+        }
+
+        Debug.Log("Finalizando UpdateItemList");
     }
 
     TextMeshProUGUI configText(TextMeshProUGUI text, int Second)
@@ -233,18 +310,23 @@ public class TimerManager : MonoBehaviour
     IEnumerator CoolDown(int ID)
     {
         yield return new WaitForSeconds(0.5f);
+
         for (int i = 0; i < timers.Count; i++)
         {
-            if (timers[i] != null && timers[i].GetComponent<Timer>().ID == ID)
+            Timer timerComponent = timers[i];
+
+            // Verificar si el componente o el objeto no es nulo
+            if (timerComponent != null && timerComponent.ID == ID)
             {
-                Destroy(timers[i].gameObject);  // Destruye el objeto
-                timers.RemoveAt(i);  // Elimina el objeto de la lista para que no sea accesible después
-                UpdateListPosition();  // Actualiza la lista después de eliminar
-                break;  // Sal del bucle una vez que encuentres y elimines el objeto
-            }
-            else
-            {
-                print("none in list");
+                // Destruir el objeto en la escena
+                Destroy(timerComponent.gameObject);
+
+                print($"eliminado {timerComponent.ID}");
+                timers.RemoveAt(i);
+
+                // Actualizar la lista de ítems en la UI después de eliminar
+                UpdateItemList(timers);
+                break;
             }
         }
     }
